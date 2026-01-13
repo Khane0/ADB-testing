@@ -60,10 +60,12 @@ while iterations<=maxIterations:
         power.append(float(psu.query('MEAS:POWE?')))
         timeElapsed = time.time() - t0
 
+        print(f"Time: {format_time(timeElapsed)}, Current: {curr[-1]:.3f} A, Power: {power[-1]:.3f} W")
+
         if curr[-1] >= currThreshold: testing = False
         
         pollTime.append(timeElapsed)
-        time.sleep(0.05) #polling interval
+        time.sleep(0.25) #polling interval
 
     print(f"test #{iterations} complete. current spike detected\n")
     print(f"time elapsed: {format_time(timeElapsed)}\n")
