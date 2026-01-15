@@ -7,17 +7,20 @@ from datetime import datetime
 import sys
 
 psu = pyvisa.ResourceManager().open_resource('USB0::0x1AB1::0x0E11::DP8C234305873::INSTR')
-ad = dwf.Device()
+with dwf.Device() as ad:
+    input = ad.digital_input
+
+
 if ad is None:
     print("failed to open DWF device")
     sys.exit(1)
-io = ad.digital_io
-if io is None:
-    print("failed to open DWF digital IO")
-    sys.exit(1)
-io[0].setup(enabled = True, state = False)
-io[1].setup(enabled = False, configure = True)
-io[2].setup(enabled = False, configure = True)
+
+
+input.dio_first = True
+
+io[0].setup(enabled=True, state=True)  # BURN output
+io[1].setup(enabled=True, configure=True)  # DET1 input
+io[2].setup(enabled=True, configure=True)  # DET2 input
 
 def format_time(seconds: float) -> str:
     minutes = int(seconds) // 60
@@ -40,8 +43,8 @@ def read_DIO(pin: int) -> bool:
     io.read_status()
     return io[pin].input_state
 
-def burn(burn: bool):
-    io[0].output_state = burn
+def burn(state: bool):
+    io[0].output_state = state
 
 
 chan1 = 1
