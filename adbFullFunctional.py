@@ -22,6 +22,7 @@ if dwf.FDwfDeviceOpen(c_int(-1), byref(hdwf)) == 0:
 
 psu = pyvisa.ResourceManager().open_resource('USB0::0x1AB1::0x0E11::DP8C234305873::INSTR')
 
+#chat changes-----
 # DIO configuration
 # DIO0 = BURN (output)
 # DIO1 = DET1 (input)
@@ -31,6 +32,7 @@ dwf.FDwfDigitalIOOutputEnableSet(hdwf, c_int(0b00000001))  # DIO0 output
 dwf.FDwfDigitalIOOutputSet(hdwf, c_int(0))                # BURN LOW
 
 dwf.FDwfDigitalIOInputEnableSet(hdwf, c_int(0b00000110))  # DIO1, DIO2 inputs
+#------
 
 def format_time(seconds: float) -> str:
     minutes = int(seconds) // 60
@@ -50,14 +52,14 @@ def ask(prompt: str):
             break
 
 def read_DIO(pin: int) -> bool:
-    dwRead = c_uint32()
-    dwf.FDwfDigitalIOStatus(hdwf)
-    dwf.FDwfDigitalIOInputStatus(hdwf, byref(dwRead))
-    return bool(dwRead.value & (1 << pin))
+    dwRead = c_uint32() #io states returned as 32 bitmask
+    dwf.FDwfDigitalIOStatus(hdwf) #sub for io.read_status
+    dwf.FDwfDigitalIOInputStatus(hdwf, byref(dwRead)) #writes pin logic levels to dwRead
+    return bool(dwRead.value & (1 << pin)) #extracts the pin we want
 
 def burn(state: bool):
     dwf.FDwfDigitalIOOutputSet(
-        hdwf,
+        hdwf, 
         c_int(1 if state else 0)
     )
 
