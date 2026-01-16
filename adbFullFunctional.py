@@ -112,34 +112,34 @@ psu.write('OUTP ON')
 ask("Verified DS1 is ON and EGSE BURN is OFF?")
 
 print("*  Depress SW1.")
-print("Waiting for DET1 to trigger...")
-while not read_DIO(DET1):
+print("Waiting for DET1 to go low...")
+while read_DIO(DET1):
     time.sleep(0.1)
-print("DET1 triggered.")
+print("DET1 went low.")
 ask("Verified DS2 is ON and EGSE DET1 is OFF?")
 
 print("*  Release SW1.")
-print("Waiting for DET1 to release...")
-while read_DIO(DET1):
+print("Waiting for DET1 to go high...")
+while not read_DIO(DET1):
     time.sleep(0.1)
-print("DET1 released.")
+print("DET1 went high.")
 
 print("*  Depress SW2.")
-print("Waiting for DET2 to trigger...")
-while not read_DIO(DET2):
+print("Waiting for DET2 to go low...")
+while read_DIO(DET2):
     time.sleep(0.1)
 ask("Verified DS2 is ON and EGSE DET2 is OFF?")
 
 print("*  Release SW2.")
 print("Waiting for DET2 to release...")
-while read_DIO(DET2):
+while not read_DIO(DET2):
     time.sleep(0.1)
 print("DET2 released.")
 
 print("*  Connect RBF to J2")
 ask("Verified DS1 is OFF?")
 
-print("*  Tape SW1 and SW2 down.")
+print("*  Set up antennas, and depress SW1 and SW2.")
 ask("Ready to remove RBF?")
 
 print("*  Remove RBF from J2")
@@ -209,7 +209,7 @@ while testing:
         continue             # retry loop
     timeElapsed = time.time() - t0
 
-    print(f"Time: {format_time(timeElapsed)}, Voltage: {volt_val:.3f}V, Current: {curr_val:.6f} A, Power: {pow_val:.6f} W")
+    print(f"Time: {format_time(timeElapsed)}, Voltage: {volt_val:.4f}V, Current: {curr_val:.4f} A, Power: {pow_val:.4f} W")
 
     if curr_val >= burnCurrThreshold and not burning:
         print("Timer triggered at time:", format_time(timeElapsed))
@@ -225,6 +225,7 @@ while testing:
     if burning and (read_DIO(DET1) and read_DIO(DET2)):
         print("Both deployments detected. Ending test.")
         testing = False
+        break
 
     curr.append(curr_val)
     volt.append(volt_val)
@@ -246,34 +247,45 @@ timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # e.g. 20260112_153045
 
 with open(f"full_functional_test_{timestamp}_data.csv", 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
-    writer.writerow(['Time (MM:SS.mmm)', 'Current (A)', 'Power (W)'])
-    for t, c, p in zip(pollTime, curr, power):
-        writer.writerow([format_time(t), f"{c:.6f}", f"{p:.6f}"])
+    writer.writerow(['Time (MM:SS.mmm)', 'Voltage (V)', 'Current (A)', 'Power (W)'])
+    for t, v, c, p in zip(pollTime, volt, curr, power):
+        writer.writerow([format_time(t), f"{v:.4f}", f"{c:.4f}", f"{p:.4f}"])
 
 print("data saved to " + f"full_functional_test_{timestamp}_data.csv")
 
-# write final results to a text file
+# In the final results section:
+
+timer_segment_duration = burnTime
+burn_segment_duration = timeElapsed - burnTime
+
+# Helper function for safe averaging
+def safe_avg(data):
+    return sum(data) / len(data) if data else 0
+
+timer_avg_power = safe_avg(power[:burnStartIndex])
+burn_avg_power = safe_avg(power[burnStartIndex:])
+
 with open(f"full_functional_test_{timestamp}.txt", "w") as f:
     f.write(f"Final Results for test {timestamp}\n")
     f.write("Timer segment:\n")
-    f.write(f"Time elapsed: {format_time(burnTime)}\n")
-    f.write(f"Average voltage: {sum(volt[:burnStartIndex])/len(volt[:burnStartIndex]):.6f} V\n")
-    f.write(f"Average current: {sum(curr[:burnStartIndex])/len(curr[:burnStartIndex]):.6f} A\n")
-    f.write(f"Average power: {sum(power[:burnStartIndex])/len(power[:burnStartIndex]):.6f} W\n")
-    f.write(f"Energy consumed: {sum(power[:burnStartIndex])/len(power[:burnStartIndex])*burnTime:.3f} J\n")
+    f.write(f"Time elapsed: {format_time(timer_segment_duration)}\n")
+    f.write(f"Average voltage: {safe_avg(volt[:burnStartIndex]):.5f} V\n")
+    f.write(f"Average current: {safe_avg(curr[:burnStartIndex]):.6f} A\n")
+    f.write(f"Average power: {timer_avg_power:.6f} W\n")
+    f.write(f"Energy consumed: {timer_avg_power * timer_segment_duration:.3f} J\n")
     f.write("\n")
     f.write("Burn segment:\n")
-    f.write(f"Time elapsed: {format_time(timeElapsed - burnTime)}\n")
-    f.write(f"Average voltage: {sum(volt[burnStartIndex:])/len(volt[burnStartIndex:]):.6f} V\n")
-    f.write(f"Average current: {sum(curr[burnStartIndex:])/len(curr[burnStartIndex:]):.6f} A\n")
-    f.write(f"Average power: {sum(power[burnStartIndex:])/len(power[burnStartIndex:]):.6f} W\n")
-    f.write(f"Energy consumed: {sum(power[burnStartIndex:])/len(power[burnStartIndex:])*(timeElapsed - burnTime):.3f} J\n")
+    f.write(f"Time elapsed: {format_time(burn_segment_duration)}\n")
+    f.write(f"Average voltage: {safe_avg(volt[burnStartIndex:]):.5f} V\n")
+    f.write(f"Average current: {safe_avg(curr[burnStartIndex:]):.6f} A\n")
+    f.write(f"Average power: {burn_avg_power:.6f} W\n")
+    f.write(f"Energy consumed: {burn_avg_power * burn_segment_duration:.3f} J\n")
     f.write("\n")
     f.write("Overall Results:\n")
     f.write(f"Total time elapsed: {format_time(timeElapsed)}\n")
-    f.write(f"Overall average voltage: {sum(volt)/len(volt):.6f} V\n")
-    f.write(f"Overall average current: {sum(curr)/len(curr):.6f} A\n")
-    f.write(f"Overall average power: {sum(power)/len(power):.6f} W\n")
-    f.write(f"Total energy consumed: {sum(power)*timeElapsed/len(power):.3f} J\n")
+    f.write(f"Overall average voltage: {safe_avg(volt):.5f} V\n")
+    f.write(f"Overall average current: {safe_avg(curr):.6f} A\n")
+    f.write(f"Overall average power: {safe_avg(power):.6f} W\n")
+    f.write(f"Total energy consumed: {safe_avg(power) * timeElapsed:.3f} J\n")
 
 print("Final results saved to " + f"full_functional_test_{timestamp}.txt")
