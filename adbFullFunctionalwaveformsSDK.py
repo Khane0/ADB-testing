@@ -22,12 +22,6 @@ if dwf.FDwfDeviceOpen(c_int(-1), byref(hdwf)) == 0:
 
 psu = pyvisa.ResourceManager().open_resource('USB0::0x1AB1::0x0E11::DP8C234305873::INSTR')
 
-#chat changes-----
-# DIO configuration
-# DIO0 = BURN (output)
-# DIO1 = DET1 (input)
-# DIO2 = DET2 (input)
-
 dwf.FDwfDigitalIOOutputEnableSet(hdwf, c_int(0b00000001))  # DIO0 output
 dwf.FDwfDigitalIOOutputSet(hdwf, c_int(0))                # BURN LOW
 
@@ -277,3 +271,4 @@ with open(f"full_functional_test_{timestamp}.txt", "w") as f:
     f.write(f"Total energy consumed: {sum(power)*timeElapsed/len(power):.3f} J\n")
 
 print("Final results saved to " + f"full_functional_test_{timestamp}.txt")
+
